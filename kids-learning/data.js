@@ -38,7 +38,7 @@ const WORD_PAIRS = [
   { word: "小鸟", parts: ["小", "鸟"] },
   { word: "大山", parts: ["大", "山"] },
   { word: "山水", parts: ["山", "水"] },
-  { word: "白云", parts: ["云", "雨"] },
+  { word: "白云", parts: ["白", "云"] },
   { word: "小车", parts: ["小", "车"] },
   { word: "大门", parts: ["大", "门"] },
 ];

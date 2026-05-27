@@ -34,11 +34,17 @@
     task: null,
     balloons: [],
     drag: null,
+    resolving: false,
     toastTimer: 0,
+    speechToken: 0,
+    voices: [],
+    voice: null,
+    audioContext: null,
   };
 
   function init() {
     bindEvents();
+    primeVoices();
     newTask();
   }
 
@@ -48,6 +54,11 @@
     hanziMode.addEventListener("click", () => setMode("hanzi"));
     mathMode.addEventListener("click", () => setMode("math"));
     window.addEventListener("resize", () => layoutBalloons());
+    if ("speechSynthesis" in window && typeof window.speechSynthesis.addEventListener === "function") {
+      window.speechSynthesis.addEventListener("voiceschanged", primeVoices);
+    } else if ("speechSynthesis" in window) {
+      window.speechSynthesis.onvoiceschanged = primeVoices;
+    }
   }
 
   function setMode(mode) {
@@ -61,10 +72,14 @@
 
   function newTask() {
     state.task = state.mode === "hanzi" ? makeHanziTask() : makeMathTask();
+    state.resolving = false;
     modeLabel.textContent = state.mode === "hanzi" ? "认汉字" : "20以内加减法";
-    taskTitle.textContent = state.task.title;
+    renderTaskTitle(state.task);
     taskHint.textContent = state.task.hint;
     targetText.textContent = state.task.target;
+    listenButton.textContent = "听题";
+    targetZone.classList.remove("hot", "success", "hint");
+    targetZone.setAttribute("aria-label", `答案区：${state.task.target}`);
     clearBalloons();
     makeBalloons(state.task.options);
     updateHud();
@@ -80,10 +95,12 @@
       return {
         type,
         answer,
-        title: `组词：${pair.word}`,
-        hint: `找出 “${answer}”`,
+        title: "找",
+        focus: answer,
+        hint: `组词：${pair.word}`,
         target: pair.word,
-        readText: `${pair.word}，找 ${answer}`,
+        readParts: ["组词", pair.word, `请找 ${answer}`],
+        successParts: ["答对了", `${answer} 是 ${pair.word} 里的字`],
         options: shuffle([answer, ...sampleMany(distractors, 5)]),
       };
     }
@@ -94,10 +111,12 @@
     return {
       type,
       answer: item.char,
-      title: "找一找",
+      title: "找",
+      focus: item.char,
       hint: `${item.word}  ${item.pinyin}`,
       target: item.char,
-      readText: `${item.char}，${item.word}`,
+      readParts: ["请找", item.char, item.word],
+      successParts: ["答对了", `${item.char}，${item.word}`],
       options: shuffle([item.char, ...sampleMany(sameGroup, 2).map((entry) => entry.char), ...sampleMany(rest, 3).map((entry) => entry.char)]),
     };
   }
@@ -108,17 +127,20 @@
     let b;
     let answer;
     let expression;
+    let operation;
 
     if (addition) {
       answer = randomInt(5, 20);
       a = randomInt(1, answer - 1);
       b = answer - a;
       expression = `${a} + ${b}`;
+      operation = "加";
     } else {
       answer = randomInt(1, 18);
       b = randomInt(1, 20 - answer);
       a = answer + b;
       expression = `${a} - ${b}`;
+      operation = "减";
     }
 
     const options = new Set([answer]);
@@ -134,9 +156,29 @@
       title: "算一算",
       hint: expression,
       target: `${expression} = ?`,
-      readText: `${expression} 等于几`,
+      readParts: ["请算一算", `${numberToChinese(a)} ${operation} ${numberToChinese(b)}`, "等于几"],
+      successParts: ["答对了", `${numberToChinese(a)} ${operation} ${numberToChinese(b)} 等于 ${numberToChinese(answer)}`],
       options: shuffle([...options].map(String)),
     };
+  }
+
+  function renderTaskTitle(task) {
+    taskTitle.replaceChildren();
+    taskTitle.classList.toggle("has-focus", Boolean(task.focus));
+    if (!task.focus) {
+      taskTitle.textContent = task.title;
+      taskTitle.removeAttribute("aria-label");
+      return;
+    }
+
+    const prefix = document.createElement("span");
+    const focus = document.createElement("span");
+    prefix.className = "title-prefix";
+    focus.className = "focus-char";
+    prefix.textContent = task.title;
+    focus.textContent = task.focus;
+    taskTitle.append(prefix, focus);
+    taskTitle.setAttribute("aria-label", `${task.title} ${task.focus}`);
   }
 
   function clearBalloons() {
@@ -158,6 +200,8 @@
         size,
         x: 0,
         y: 0,
+        homeX: 0,
+        homeY: 0,
         floatSeed: Math.random() * Math.PI * 2,
       };
 
@@ -169,9 +213,15 @@
       el.style.setProperty("--font", `${Math.max(26, size * 0.45)}px`);
       el.style.setProperty("--c1", color[0]);
       el.style.setProperty("--c2", color[1]);
+      el.style.setProperty("--bob-delay", `${(-index * 0.28).toFixed(2)}s`);
       el.setAttribute("aria-label", `${value} 气球`);
       el.addEventListener("pointerdown", (event) => startDrag(event, balloon));
       el.addEventListener("mousedown", (event) => startDrag(event, balloon));
+      el.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        chooseBalloon(balloon);
+      });
       balloonLayer.appendChild(el);
       state.balloons.push(balloon);
     });
@@ -191,12 +241,14 @@
       const jitter = Math.sin(index * 1.7) * 10;
       balloon.x = 17 + col * cell + cell / 2 - balloon.size / 2 + jitter;
       balloon.y = 40 + row * rowGap + Math.cos(index * 2.3) * 8;
+      balloon.homeX = balloon.x;
+      balloon.homeY = balloon.y;
       applyBalloonPosition(balloon);
     });
   }
 
   function startDrag(event, balloon) {
-    if (state.drag) return;
+    if (state.drag || state.resolving) return;
     if (event.type === "mousedown" && event.button !== 0) return;
     event.preventDefault();
     if (event.pointerId !== undefined && balloon.el.setPointerCapture) {
@@ -212,8 +264,13 @@
       pointerId: event.pointerId === undefined ? "mouse" : event.pointerId,
       offsetX: balloon.x - point.x,
       offsetY: balloon.y - point.y,
+      startX: point.x,
+      startY: point.y,
+      moved: false,
     };
+    balloon.el.classList.remove("wrong");
     balloon.el.classList.add("dragging");
+    targetZone.classList.add("ready");
     document.addEventListener("pointermove", dragMove);
     document.addEventListener("pointerup", dragEnd);
     document.addEventListener("pointercancel", dragEnd);
@@ -226,6 +283,9 @@
     const rect = playfield.getBoundingClientRect();
     const point = pointFromEvent(event);
     const balloon = state.drag.balloon;
+    const dx = point.x - state.drag.startX;
+    const dy = point.y - state.drag.startY;
+    if (Math.hypot(dx, dy) > 9) state.drag.moved = true;
     balloon.x = clamp(point.x + state.drag.offsetX, 8, rect.width - balloon.size - 8);
     balloon.y = clamp(point.y + state.drag.offsetY, 8, rect.height - balloon.size - 16);
     applyBalloonPosition(balloon);
@@ -235,20 +295,25 @@
   function dragEnd(event) {
     if (!isDragEvent(event)) return;
     const balloon = state.drag.balloon;
+    const moved = state.drag.moved;
+    const droppedInTarget = isOverTarget(balloon);
     balloon.el.classList.remove("dragging");
     document.removeEventListener("pointermove", dragMove);
     document.removeEventListener("pointerup", dragEnd);
     document.removeEventListener("pointercancel", dragEnd);
     document.removeEventListener("mousemove", dragMove);
     document.removeEventListener("mouseup", dragEnd);
-    targetZone.classList.remove("hot");
+    targetZone.classList.remove("hot", "ready");
 
-    if (isOverTarget(balloon) && String(balloon.value) === String(state.task.answer)) {
-      handleCorrect(balloon);
-    } else {
-      handleWrong(balloon);
-    }
     state.drag = null;
+    if (event.type === "pointercancel") {
+      returnBalloon(balloon);
+    } else if (!moved || droppedInTarget) {
+      chooseBalloon(balloon);
+    } else {
+      returnBalloon(balloon);
+      showToast("放进答案框里试试");
+    }
   }
 
   function isDragEvent(event) {
@@ -257,28 +322,64 @@
     return event.pointerId === state.drag.pointerId;
   }
 
+  function chooseBalloon(balloon) {
+    if (state.resolving) return;
+    if (String(balloon.value) === String(state.task.answer)) {
+      state.resolving = true;
+      flyBalloonToTarget(balloon, () => handleCorrect(balloon));
+    } else {
+      handleWrong(balloon);
+    }
+  }
+
+  function flyBalloonToTarget(balloon, done) {
+    const field = playfield.getBoundingClientRect();
+    const target = targetZone.getBoundingClientRect();
+    balloon.x = target.left - field.left + target.width / 2 - balloon.size / 2;
+    balloon.y = target.top - field.top + target.height / 2 - balloon.size / 2;
+    balloon.el.classList.add("chosen");
+    targetZone.classList.add("hot");
+    applyBalloonPosition(balloon);
+    window.setTimeout(done, 230);
+  }
+
+  function returnBalloon(balloon) {
+    balloon.x = balloon.homeX;
+    balloon.y = balloon.homeY;
+    balloon.el.classList.remove("chosen");
+    applyBalloonPosition(balloon);
+  }
+
   function handleCorrect(balloon) {
+    targetZone.classList.remove("hot");
+    targetZone.classList.add("success");
     balloon.el.classList.add("correct");
     state.streak += 1;
     state.stars += state.streak >= 3 ? 2 : 1;
     state.round += 1;
     showToast(state.streak >= 3 ? `连续答对 ${state.streak}` : "太棒了");
-    speak(state.mode === "math" ? `答对了，${state.task.target.replace("?", state.task.answer)}` : `${state.task.answer}，答对了`);
+    createSparkles(balloon);
+    playFeedback("correct");
+    speak(state.task.successParts || ["答对了"]);
     updateHud();
     window.setTimeout(() => newTask(), 650);
   }
 
   function handleWrong(balloon) {
     state.streak = 0;
+    state.resolving = false;
     balloon.el.classList.remove("wrong");
     void balloon.el.offsetWidth;
     balloon.el.classList.add("wrong");
-    showToast("再试一次");
-    speak("再试一次");
+    targetZone.classList.add("hint");
+    showToast("再想一想");
+    playFeedback("wrong");
+    speak(["再想一想", "可以再听一遍"]);
     updateHud();
     window.setTimeout(() => {
       balloon.el.classList.remove("wrong");
-      layoutBalloons();
+      targetZone.classList.remove("hint");
+      returnBalloon(balloon);
     }, 380);
   }
 
@@ -318,17 +419,111 @@
 
   function speakTask() {
     if (!state.task) return;
-    speak(state.task.readText);
+    speak(state.task.readParts || state.task.readText);
   }
 
-  function speak(text) {
+  function speak(parts) {
     if (!("speechSynthesis" in window)) return;
+    const queue = normalizeSpeechParts(parts);
+    if (!queue.length) return;
+    primeVoices();
+    const token = state.speechToken + 1;
+    state.speechToken = token;
     window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = "zh-CN";
-    utterance.rate = 0.82;
-    utterance.pitch = 1.08;
-    window.speechSynthesis.speak(utterance);
+    listenButton.classList.add("speaking");
+    listenButton.textContent = "读题";
+
+    const speakNext = (index) => {
+      if (state.speechToken !== token) return;
+      if (index >= queue.length) {
+        finishSpeaking(token);
+        return;
+      }
+      const item = queue[index];
+      const utterance = new SpeechSynthesisUtterance(item.text);
+      utterance.lang = "zh-CN";
+      utterance.voice = state.voice;
+      utterance.rate = item.rate || 0.74;
+      utterance.pitch = item.pitch || 0.98;
+      utterance.volume = 1;
+      utterance.onend = () => window.setTimeout(() => speakNext(index + 1), item.pause || 150);
+      utterance.onerror = () => window.setTimeout(() => speakNext(index + 1), 90);
+      window.speechSynthesis.speak(utterance);
+    };
+
+    speakNext(0);
+  }
+
+  function finishSpeaking(token) {
+    if (state.speechToken !== token) return;
+    listenButton.classList.remove("speaking");
+    listenButton.textContent = "听题";
+  }
+
+  function normalizeSpeechParts(parts) {
+    const list = Array.isArray(parts) ? parts : [parts];
+    return list
+      .map((part) => (typeof part === "string" ? { text: part } : part))
+      .filter((part) => part && part.text && part.text.trim())
+      .map((part) => ({ ...part, text: part.text.trim() }));
+  }
+
+  function primeVoices() {
+    if (!("speechSynthesis" in window)) return;
+    state.voices = window.speechSynthesis.getVoices();
+    state.voice = pickChineseVoice(state.voices);
+  }
+
+  function pickChineseVoice(voices) {
+    const preferredNames = ["Xiaoxiao", "Tingting", "Ting-Ting", "Mei-Jia", "Meijia", "婷婷", "晓晓", "普通话", "Mandarin"];
+    const chineseVoices = voices.filter((voice) => /zh|cmn/i.test(voice.lang) || /Chinese|Mandarin|Ting|Xiao|Mei|普通话|中文/.test(voice.name));
+    return (
+      preferredNames.map((name) => chineseVoices.find((voice) => voice.name.includes(name))).find(Boolean) ||
+      chineseVoices.find((voice) => voice.lang === "zh-CN") ||
+      chineseVoices[0] ||
+      null
+    );
+  }
+
+  function playFeedback(type) {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    if (!state.audioContext) state.audioContext = new AudioContext();
+    const context = state.audioContext;
+    context.resume();
+    const notes = type === "correct" ? [523, 659, 784] : [220, 196];
+    notes.forEach((frequency, index) => {
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      const start = context.currentTime + index * 0.075;
+      oscillator.type = "sine";
+      oscillator.frequency.value = frequency;
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(type === "correct" ? 0.08 : 0.045, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.14);
+      oscillator.connect(gain).connect(context.destination);
+      oscillator.start(start);
+      oscillator.stop(start + 0.16);
+    });
+    if ("vibrate" in navigator) navigator.vibrate(type === "correct" ? 28 : 16);
+  }
+
+  function createSparkles(balloon) {
+    const centerX = balloon.x + balloon.size / 2;
+    const centerY = balloon.y + balloon.size / 2;
+    for (let index = 0; index < 9; index += 1) {
+      const sparkle = document.createElement("span");
+      const angle = (Math.PI * 2 * index) / 9;
+      const distance = 34 + (index % 3) * 13;
+      sparkle.className = "sparkle";
+      sparkle.style.left = `${centerX}px`;
+      sparkle.style.top = `${centerY}px`;
+      sparkle.style.setProperty("--dx", `${Math.cos(angle) * distance}px`);
+      sparkle.style.setProperty("--dy", `${Math.sin(angle) * distance}px`);
+      sparkle.style.setProperty("--delay", `${index * 18}ms`);
+      playfield.appendChild(sparkle);
+      window.setTimeout(() => sparkle.remove(), 780);
+    }
   }
 
   function sample(items) {
@@ -353,6 +548,13 @@
 
   function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
+  }
+
+  function numberToChinese(value) {
+    const words = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十"];
+    if (value <= 10) return words[value];
+    if (value < 20) return `十${words[value - 10]}`;
+    return "二十";
   }
 
   function sizeForNumber(value) {

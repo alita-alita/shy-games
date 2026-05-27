@@ -30,8 +30,7 @@ body {
   color: var(--ink);
   font-family: ui-rounded, "SF Pro Rounded", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
   background:
-    radial-gradient(circle at 18% 8%, rgba(255, 255, 255, 0.78) 0 8%, transparent 9%),
-    linear-gradient(155deg, #7edcff 0%, #57c7d8 48%, #78d974 100%);
+    linear-gradient(155deg, #84dcff 0%, #55c8d8 48%, #7bdd82 100%);
   -webkit-font-smoothing: antialiased;
   touch-action: none;
   user-select: none;
@@ -59,7 +58,7 @@ button {
   min-height: 620px;
   display: grid;
   grid-template-rows: auto auto 1fr auto;
-  gap: 10px;
+  gap: 9px;
   padding: 10px;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.72);
@@ -105,13 +104,14 @@ button {
 .task-card {
   min-height: 86px;
   display: grid;
-  grid-template-columns: 1fr 58px;
+  grid-template-columns: 1fr 70px;
   align-items: center;
   gap: 10px;
   padding: 12px 14px;
   border: 1px solid var(--line);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.84);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(236, 253, 255, 0.86));
+  box-shadow: 0 8px 18px rgba(23, 49, 79, 0.08);
 }
 
 .mode-label {
@@ -134,6 +134,32 @@ h1 {
   white-space: nowrap;
 }
 
+h1.has-focus {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  overflow: visible;
+  line-height: 1.02;
+}
+
+.title-prefix {
+  flex: 0 0 auto;
+}
+
+.focus-char {
+  display: inline-block;
+  padding: 0 6px 2px;
+  border-radius: 9px;
+  color: #0f3154;
+  background:
+    linear-gradient(180deg, transparent 0 52%, rgba(255, 215, 88, 0.55) 52% 100%),
+    linear-gradient(90deg, rgba(255, 245, 179, 0.72), rgba(255, 225, 113, 0.68));
+  box-shadow: inset 0 -2px 0 rgba(191, 134, 14, 0.08);
+  font-size: clamp(34px, 10vw, 44px);
+  font-weight: 1000;
+  letter-spacing: 0;
+}
+
 #taskHint {
   margin: 4px 0 0;
   color: var(--muted);
@@ -143,14 +169,25 @@ h1 {
 }
 
 .icon-button {
-  width: 54px;
-  height: 54px;
-  border-radius: 50%;
+  width: 68px;
+  height: 56px;
+  border-radius: 16px;
   color: #17314f;
   background: linear-gradient(180deg, #ffffff, #dff8ff);
   box-shadow: inset 0 -3px 0 rgba(23, 49, 79, 0.12), 0 8px 18px rgba(23, 49, 79, 0.12);
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 900;
+  transition: transform 140ms ease, filter 140ms ease;
+}
+
+.icon-button:active,
+.icon-button.speaking {
+  transform: translateY(2px) scale(0.97);
+  filter: saturate(1.1);
+}
+
+.icon-button.speaking {
+  background: linear-gradient(180deg, #fff6c7, #ffd86f);
 }
 
 .playfield {
@@ -167,25 +204,43 @@ h1 {
   left: 50%;
   bottom: 22px;
   z-index: 3;
-  width: min(72%, 330px);
-  min-height: 72px;
+  width: min(76%, 350px);
+  min-height: 76px;
   display: grid;
   place-items: center;
   padding: 10px 14px;
-  border: 2px dashed rgba(23, 49, 79, 0.22);
-  border-radius: 14px;
+  border: 2px dashed rgba(23, 49, 79, 0.18);
+  border-radius: 18px;
   color: #365774;
-  background: rgba(255, 255, 255, 0.58);
+  background:
+    radial-gradient(ellipse at 50% 100%, rgba(95, 213, 138, 0.2), transparent 62%),
+    rgba(255, 255, 255, 0.62);
   font-size: clamp(18px, 5vw, 25px);
   font-weight: 900;
   transform: translateX(-50%);
-  transition: transform 150ms ease, border-color 150ms ease, background 150ms ease;
+  transition: transform 150ms ease, border-color 150ms ease, background 150ms ease, box-shadow 150ms ease;
+}
+
+.target-zone.ready {
+  border-color: rgba(42, 150, 222, 0.42);
+  box-shadow: 0 0 0 8px rgba(255, 255, 255, 0.18);
 }
 
 .target-zone.hot {
   border-color: rgba(53, 196, 106, 0.78);
   background: rgba(244, 255, 232, 0.9);
   transform: translateX(-50%) scale(1.03);
+}
+
+.target-zone.success {
+  border-color: rgba(255, 200, 87, 0.92);
+  background: linear-gradient(180deg, rgba(255, 249, 210, 0.94), rgba(232, 255, 225, 0.94));
+  animation: target-pop 520ms ease;
+}
+
+.target-zone.hint {
+  border-color: rgba(255, 122, 120, 0.76);
+  background: rgba(255, 245, 246, 0.9);
 }
 
 .balloon-layer {
@@ -204,7 +259,7 @@ h1 {
   border-radius: 52% 52% 49% 49%;
   color: #ffffff;
   background:
-    radial-gradient(ellipse at 34% 27%, rgba(255, 255, 255, 0.62) 0 10%, transparent 11%),
+    radial-gradient(ellipse 15% 10% at 31% 23%, rgba(255, 255, 255, 0.28) 0 52%, transparent 58%),
     linear-gradient(160deg, var(--c1), var(--c2));
   box-shadow: inset 0 -8px 14px rgba(23, 49, 79, 0.08), 0 9px 18px rgba(23, 49, 79, 0.18);
   font-size: var(--font);
@@ -212,9 +267,12 @@ h1 {
   line-height: 1;
   text-shadow: 0 2px 0 rgba(23, 49, 79, 0.12);
   transform: translate3d(var(--x), var(--y), 0);
-  transition: filter 140ms ease, opacity 140ms ease, transform 120ms ease;
+  transition: filter 140ms ease, opacity 140ms ease, transform 220ms cubic-bezier(0.2, 0.9, 0.24, 1.08);
   touch-action: none;
   will-change: transform;
+  cursor: grab;
+  animation: balloon-bob 2.6s ease-in-out infinite;
+  animation-delay: var(--bob-delay);
 }
 
 .balloon::after {
@@ -232,7 +290,17 @@ h1 {
 
 .balloon.dragging {
   z-index: 20;
+  cursor: grabbing;
   filter: saturate(1.08) brightness(1.04);
+  animation: none;
+  transform: translate3d(var(--x), var(--y), 0) scale(1.06);
+  transition: filter 100ms ease, transform 36ms linear;
+}
+
+.balloon.chosen {
+  z-index: 21;
+  animation: none;
+  filter: saturate(1.12) brightness(1.05);
 }
 
 .balloon.correct {
@@ -257,10 +325,13 @@ h1 {
   font-size: 16px;
   font-weight: 900;
   transform: translateX(-50%);
+  pointer-events: none;
+  transition: opacity 150ms ease, transform 150ms ease;
 }
 
 .toast.hidden {
   opacity: 0;
+  transform: translateX(-50%) translateY(-6px);
 }
 
 .controls {
@@ -276,6 +347,12 @@ h1 {
   box-shadow: inset 0 -3px 0 rgba(23, 49, 79, 0.12), 0 8px 18px rgba(23, 49, 79, 0.1);
   font-size: 17px;
   font-weight: 900;
+  transition: transform 120ms ease, filter 120ms ease;
+}
+
+.mode-button:active {
+  transform: translateY(2px) scale(0.98);
+  filter: saturate(1.08);
 }
 
 .mode-button.active {
@@ -311,6 +388,70 @@ h1 {
   }
 }
 
+@keyframes balloon-bob {
+  0%,
+  100% {
+    transform: translate3d(var(--x), var(--y), 0);
+  }
+  50% {
+    transform: translate3d(var(--x), calc(var(--y) - 7px), 0);
+  }
+}
+
+@keyframes target-pop {
+  0%,
+  100% {
+    transform: translateX(-50%) scale(1);
+  }
+  50% {
+    transform: translateX(-50%) scale(1.05);
+  }
+}
+
+.sparkle {
+  position: absolute;
+  z-index: 9;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #ffd95c;
+  box-shadow: 0 0 0 4px rgba(255, 217, 92, 0.18);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  animation: sparkle-out 680ms ease-out forwards;
+  animation-delay: var(--delay);
+}
+
+@keyframes sparkle-out {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.4);
+  }
+  18% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(0.2);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .balloon,
+  .target-zone.success,
+  .sparkle {
+    animation: none;
+  }
+
+  .balloon,
+  .target-zone,
+  .toast,
+  .icon-button,
+  .mode-button {
+    transition-duration: 1ms;
+  }
+}
+
 @media (max-width: 360px) {
   .game-card {
     min-height: 590px;
@@ -318,14 +459,15 @@ h1 {
   }
 
   .task-card {
-    grid-template-columns: 1fr 50px;
+    grid-template-columns: 1fr 60px;
     min-height: 78px;
     padding: 10px;
   }
 
   .icon-button {
-    width: 48px;
-    height: 48px;
+    width: 58px;
+    height: 50px;
+    font-size: 15px;
   }
 
   .mode-button {
