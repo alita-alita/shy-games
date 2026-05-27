@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#5fb8ff" />
+    <title>泡泡 2048</title>
+    <link rel="stylesheet" href="styles.css?v=classes-20260527" />
+  </head>
+  <body>
+    <main class="app-shell" aria-label="泡泡 2048 游戏">
+      <section class="game-card">
+        <header class="hud" aria-label="游戏状态">
+          <div class="stat">
+            <span class="stat-label">分数</span>
+            <strong id="score">0</strong>
+          </div>
+          <div class="stat target">
+            <span class="stat-label">目标</span>
+            <strong id="target">2048</strong>
+          </div>
+          <div class="stat">
+            <span class="stat-label">最高</span>
+            <strong id="best">0</strong>
+          </div>
+        </header>
+
+        <div class="canvas-wrap">
+          <canvas id="game" aria-label="泡泡合成区域"></canvas>
+          <div id="message" class="message hidden" role="status" aria-live="polite">
+            <div class="message-panel">
+              <p id="messageTitle" class="message-title">泡泡 2048</p>
+              <p id="messageText" class="message-text">选择基础班或进阶版开始。</p>
+              <div id="modeSelector" class="mode-selector" aria-label="选择难度">
+                <button id="basicMode" class="mode-button active" type="button" aria-pressed="true">
+                  <strong>基础班</strong>
+                  <span>数字目标</span>
+                </button>
+                <button id="advancedMode" class="mode-button" type="button" aria-pressed="false">
+                  <strong>进阶版</strong>
+                  <span>加减法</span>
+                </button>
+              </div>
+              <button id="primaryAction" class="primary-button" type="button">开始游戏</button>
+            </div>
+          </div>
+        </div>
+
+        <footer class="control-bar" aria-label="游戏操作">
+          <button id="mergeTool" class="tool-button" type="button" aria-label="整理相同泡泡">
+            <span class="tool-icon">+</span>
+            <span class="tool-copy">
+              <span>整理</span>
+              <small id="mergeCount">1</small>
+            </span>
+          </button>
+          <button id="pauseButton" class="round-button" type="button" aria-label="暂停或继续">
+            <span id="pauseIcon">II</span>
+          </button>
+          <button id="clearTool" class="tool-button" type="button" aria-label="清理小泡泡">
+            <span class="tool-icon">x</span>
+            <span class="tool-copy">
+              <span>清理</span>
+              <small id="clearCount">1</small>
+            </span>
+          </button>
+        </footer>
+      </section>
+    </main>
+
+    <script src="game.js?v=classes-20260527"></script>
+  </body>
+</html>

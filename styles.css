@@ -1,0 +1,346 @@
+:root {
+  color-scheme: light;
+  --sky: #5fb8ff;
+  --water: #38d1c3;
+  --ink: #17314f;
+  --muted: #5d748e;
+  --panel: #ffffff;
+  --line: rgba(23, 49, 79, 0.16);
+  --shadow: 0 16px 40px rgba(17, 74, 117, 0.22);
+  --danger: #ef5b68;
+  --gold: #ffc857;
+  --leaf: #35c46a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overscroll-behavior: none;
+}
+
+body {
+  min-height: 100svh;
+  color: var(--ink);
+  font-family: ui-rounded, "SF Pro Rounded", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+  background:
+    radial-gradient(circle at 18% 12%, rgba(255, 255, 255, 0.82) 0 9%, transparent 10%),
+    linear-gradient(155deg, #85d9ff 0%, #47c7df 44%, #7bd76a 100%);
+  -webkit-font-smoothing: antialiased;
+  touch-action: none;
+  user-select: none;
+}
+
+button {
+  color: inherit;
+  font: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.app-shell {
+  width: 100%;
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+}
+
+.game-card {
+  width: min(100%, 520px);
+  height: min(100svh - 20px, 860px);
+  min-height: 620px;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.76);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(16px);
+}
+
+.hud {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  padding: 10px;
+}
+
+.stat {
+  min-width: 0;
+  padding: 8px 8px 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+  text-align: center;
+}
+
+.stat-label {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.15;
+}
+
+.stat strong {
+  display: block;
+  margin-top: 2px;
+  overflow: hidden;
+  font-size: clamp(18px, 5vw, 27px);
+  line-height: 1.05;
+  text-overflow: ellipsis;
+}
+
+.target {
+  background: linear-gradient(180deg, #fff5c7 0%, #ffe58c 100%);
+}
+
+.canvas-wrap {
+  position: relative;
+  min-height: 0;
+  margin: 0 10px;
+  overflow: hidden;
+  border: 1px solid rgba(23, 49, 79, 0.18);
+  border-radius: 16px;
+  background: #dff6ff;
+}
+
+#game {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.message {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(19, 56, 84, 0.18);
+}
+
+.message.hidden {
+  pointer-events: none;
+  opacity: 0;
+}
+
+.message-panel {
+  width: min(100%, 330px);
+  padding: 22px 18px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 18px 42px rgba(23, 49, 79, 0.22);
+  text-align: center;
+}
+
+.message-title {
+  margin: 0;
+  font-size: clamp(26px, 8vw, 39px);
+  font-weight: 900;
+  line-height: 1.08;
+}
+
+.message-text {
+  margin: 10px 0 18px;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.mode-selector {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 0 0 14px;
+}
+
+.mode-selector.hidden {
+  display: none;
+}
+
+.mode-button {
+  min-width: 0;
+  min-height: 58px;
+  padding: 8px;
+  border: 1px solid rgba(23, 49, 79, 0.14);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: inset 0 -2px 0 rgba(23, 49, 79, 0.08);
+  transition: transform 120ms ease, filter 120ms ease, opacity 120ms ease;
+}
+
+.mode-button.active {
+  border-color: rgba(53, 196, 106, 0.58);
+  background: linear-gradient(180deg, #f1fff4 0%, #dffbe8 100%);
+}
+
+.mode-button strong,
+.mode-button span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mode-button strong {
+  font-size: 15px;
+  line-height: 1.2;
+}
+
+.mode-button span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.primary-button,
+.round-button,
+.tool-button {
+  border: 0;
+  cursor: pointer;
+  transition: transform 120ms ease, filter 120ms ease, opacity 120ms ease;
+}
+
+.primary-button:active,
+.round-button:active,
+.tool-button:active,
+.mode-button:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+.primary-button {
+  width: 100%;
+  min-height: 48px;
+  border-radius: 9px;
+  color: #0b3721;
+  background: linear-gradient(180deg, #8af47f 0%, #2fd866 100%);
+  box-shadow: inset 0 -4px 0 rgba(10, 100, 48, 0.22);
+  font-size: 19px;
+  font-weight: 900;
+}
+
+.control-bar {
+  display: grid;
+  grid-template-columns: 1fr 60px 1fr;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+}
+
+.round-button,
+.tool-button {
+  min-height: 52px;
+  border-radius: 9px;
+  background: var(--panel);
+  box-shadow: inset 0 -3px 0 rgba(23, 49, 79, 0.12), 0 8px 18px rgba(23, 49, 79, 0.12);
+}
+
+.round-button {
+  display: grid;
+  place-items: center;
+  color: #1f5a7a;
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.tool-button {
+  display: grid;
+  grid-template-columns: 38px 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  text-align: left;
+}
+
+.tool-button[disabled],
+.round-button[disabled] {
+  cursor: default;
+  filter: grayscale(0.4);
+  opacity: 0.52;
+}
+
+.tool-icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #ffffff;
+  background: linear-gradient(180deg, #5fb8ff, #2e75ff);
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+#clearTool .tool-icon {
+  background: linear-gradient(180deg, #ff8aa1, #ef5b68);
+}
+
+.tool-copy {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+  font-weight: 900;
+}
+
+.tool-copy span {
+  overflow: hidden;
+  font-size: 15px;
+  line-height: 1.05;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tool-copy small {
+  width: fit-content;
+  min-width: 22px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  color: #ffffff;
+  background: #17314f;
+  font-size: 12px;
+  line-height: 1.1;
+}
+
+@media (orientation: landscape) and (max-height: 680px) {
+  .app-shell {
+    align-items: start;
+  }
+
+  .game-card {
+    width: min(100%, 440px);
+    min-height: 560px;
+  }
+}
+
+@media (max-width: 360px) {
+  .game-card {
+    min-height: 590px;
+    border-radius: 16px;
+  }
+
+  .control-bar {
+    grid-template-columns: 1fr 52px 1fr;
+    gap: 7px;
+  }
+
+  .tool-button {
+    grid-template-columns: 31px 1fr;
+    gap: 6px;
+    padding-inline: 7px;
+  }
+
+  .tool-icon {
+    width: 29px;
+    height: 29px;
+    font-size: 19px;
+  }
+}

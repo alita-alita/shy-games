@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#63c8f2" />
+    <title>字泡泡乐园</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell" aria-label="字泡泡乐园">
+      <section class="game-card">
+        <header class="hud">
+          <div class="stat">
+            <span>星星</span>
+            <strong id="stars">0</strong>
+          </div>
+          <div class="stat current">
+            <span>关卡</span>
+            <strong id="round">1</strong>
+          </div>
+          <div class="stat">
+            <span>连对</span>
+            <strong id="streak">0</strong>
+          </div>
+        </header>
+
+        <section class="task-card" aria-live="polite">
+          <div>
+            <span id="modeLabel" class="mode-label">认汉字</span>
+            <h1 id="taskTitle">找一找</h1>
+            <p id="taskHint">山</p>
+          </div>
+          <button id="listenButton" class="icon-button" type="button" aria-label="听一遍">听</button>
+        </section>
+
+        <section id="playfield" class="playfield">
+          <div id="targetZone" class="target-zone">
+            <span id="targetText">拖到这里</span>
+          </div>
+          <div id="balloonLayer" class="balloon-layer"></div>
+          <div id="toast" class="toast hidden">太棒了</div>
+        </section>
+
+        <footer class="controls" aria-label="游戏操作">
+          <button id="hanziMode" class="mode-button active" type="button">汉字</button>
+          <button id="mathMode" class="mode-button" type="button">算数</button>
+          <button id="nextButton" class="mode-button" type="button">换题</button>
+        </footer>
+      </section>
+    </main>
+
+    <script src="data.js"></script>
+    <script src="game.js"></script>
+  </body>
+</html>
